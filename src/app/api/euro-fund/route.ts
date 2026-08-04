@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { euroFund } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const transactions = await db.select().from(euroFund).orderBy(desc(euroFund.createdAt));
 
