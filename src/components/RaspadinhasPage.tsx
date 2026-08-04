@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Person {
   id: number;
@@ -35,6 +35,17 @@ interface CaixaMonth {
   runningTotal: number;
 }
 
+interface RaspadinhasInitialData {
+  people: Person[];
+  months: ScratchMonth[];
+  payments: Payment[];
+  caixa: {
+    months: CaixaMonth[];
+    initialBalance: number;
+    totalCaixa: number;
+  };
+}
+
 const MONTH_NAMES = [
   "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -42,27 +53,35 @@ const MONTH_NAMES = [
 
 const AUTO_REFRESH_MS = 10000;
 
-export default function RaspadinhasPage() {
-  const [people, setPeople] = useState<Person[]>([]);
-  const [months, setMonths] = useState<ScratchMonth[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<ScratchMonth | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
+export default function RaspadinhasPage({
+  initialData,
+}: {
+  initialData?: RaspadinhasInitialData;
+}) {
+  const [people, setPeople] = useState<Person[]>(initialData?.people ?? []);
+  const [months, setMonths] = useState<ScratchMonth[]>(initialData?.months ?? []);
+  const [selectedMonth, setSelectedMonth] = useState<ScratchMonth | null>(initialData?.months?.[0] ?? null);
+  const [payments, setPayments] = useState<Payment[]>(initialData?.payments ?? []);
   const [newPersonName, setNewPersonName] = useState("");
   const [newMonthYear, setNewMonthYear] = useState(new Date().getFullYear());
   const [newMonthMonth, setNewMonthMonth] = useState(new Date().getMonth() + 1);
   const [newMonthAmount, setNewMonthAmount] = useState("5.00");
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddMonth, setShowAddMonth] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
   const [tab, setTab] = useState<"months" | "people" | "caixa">("months");
 
-  const [caixaMonths, setCaixaMonths] = useState<CaixaMonth[]>([]);
-  const [totalCaixa, setTotalCaixa] = useState(0);
-  const [initialBalance, setInitialBalance] = useState(0);
+  const [caixaMonths, setCaixaMonths] = useState<CaixaMonth[]>(initialData?.caixa.months ?? []);
+  const [totalCaixa, setTotalCaixa] = useState(initialData?.caixa.totalCaixa ?? 0);
+  const [initialBalance, setInitialBalance] = useState(initialData?.caixa.initialBalance ?? 0);
   const [editingInitial, setEditingInitial] = useState(false);
-  const [editInitialValue, setEditInitialValue] = useState("");
+  const [editInitialValue, setEditInitialValue] = useState(
+    (initialData?.caixa.initialBalance ?? 0).toString(),
+  );
   const [editingPlayedId, setEditingPlayedId] = useState<number | null>(null);
   const [editPlayedValue, setEditPlayedValue] = useState("");
+  const skipInitialAutosaveRef = useRef(false);
+  const skipPlayedAutosaveRef = useRef(false);
 
   const loadPayments = useCallback(async (monthId: number) => {
     const res = await fetch(`/api/scratch-payments?monthId=${monthId}&t=${Date.now()}`, { cache: "no-store" });
@@ -121,17 +140,55 @@ export default function RaspadinhasPage() {
     return () => clearInterval(interval);
   }, [loadData, loadPayments, loadCaixa, selectedMonth, tab]);
 
-  async function saveInitialBalance() {
+  useEffect(() => {
+    const persistPendingChanges = () => {
+      if (editingInitial && editInitialValue.trim() !== "") {
+        fetch("/api/scratch-caixa", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initialBalance: editInitialValue }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+
+      if (editingPlayedId !== null && editPlayedValue.trim() !== "") {
+        fetch("/api/scratch-caixa", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingPlayedId, playedAmount: editPlayedValue }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+    };
+
+    window.addEventListener("beforeunload", persistPendingChanges);
+    window.addEventListener("pagehide", persistPendingChanges);
+
+    return () => {
+      window.removeEventListener("beforeunload", persistPendingChanges);
+      window.removeEventListener("pagehide", persistPendingChanges);
+    };
+  }, [editingInitial, editInitialValue, editingPlayedId, editPlayedValue]);
+
+  async function saveInitialBalance(value = editInitialValue) {
     try {
-      await fetch("/api/scratch-caixa", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initialBalance: editInitialValue }) });
+      await fetch("/api/scratch-caixa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialBalance: value }),
+      });
       setEditingInitial(false);
       loadCaixa();
     } catch (error) { console.error("Erro:", error); }
   }
 
-  async function savePlayedAmount(id: number) {
+  async function savePlayedAmount(id: number, value = editPlayedValue) {
     try {
-      await fetch("/api/scratch-caixa", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, playedAmount: editPlayedValue }) });
+      await fetch("/api/scratch-caixa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, playedAmount: value }),
+      });
       setEditingPlayedId(null);
       setEditPlayedValue("");
       loadCaixa();
@@ -237,12 +294,31 @@ export default function RaspadinhasPage() {
             <div className="bg-sky-50 rounded-xl p-3 border border-sky-200 text-center flex flex-col justify-center">
               <p className="text-xs font-medium text-sky-600">💵 Já existe em caixa</p>
               {editingInitial ? (
-                <div className="flex items-center gap-2 mt-1 justify-center">
-                  <input type="number" step="0.01" value={editInitialValue} onChange={(e) => setEditInitialValue(e.target.value)}
-                    className="w-24 px-2 py-1 rounded-lg border border-sky-300 text-sm font-bold text-center focus:ring-2 focus:ring-sky-400 outline-none" autoFocus
-                    onKeyDown={(e) => { if (e.key === "Enter") saveInitialBalance(); if (e.key === "Escape") setEditingInitial(false); }} />
-                  <button onClick={saveInitialBalance} className="bg-sky-500 hover:bg-sky-600 text-white px-2.5 py-1 rounded-lg text-xs font-medium">✓</button>
-                  <button onClick={() => setEditingInitial(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-2.5 py-1 rounded-lg text-xs font-medium">✕</button>
+                <div className="mt-1 flex flex-col items-center gap-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editInitialValue}
+                    onChange={(e) => setEditInitialValue(e.target.value)}
+                    onBlur={() => {
+                      if (skipInitialAutosaveRef.current) {
+                        skipInitialAutosaveRef.current = false;
+                        return;
+                      }
+                      void saveInitialBalance();
+                    }}
+                    className="w-24 px-2 py-1 rounded-lg border border-sky-300 text-sm font-bold text-center focus:ring-2 focus:ring-sky-400 outline-none"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void saveInitialBalance();
+                      if (e.key === "Escape") {
+                        skipInitialAutosaveRef.current = true;
+                        setEditingInitial(false);
+                        setEditInitialValue(initialBalance.toString());
+                      }
+                    }}
+                  />
+                  <p className="text-[10px] text-gray-400">Guarda automaticamente</p>
                 </div>
               ) : (
                 <button onClick={() => { setEditingInitial(true); setEditInitialValue(initialBalance.toString()); }} className="text-xl font-bold text-sky-700 hover:underline mt-1">
@@ -279,11 +355,31 @@ export default function RaspadinhasPage() {
                         <td className="py-2 px-1 text-xs sm:text-sm text-sky-600 font-medium">{m.halfSaved.toFixed(2)}€</td>
                         <td className="py-2 px-1">
                           {editingPlayedId === m.id ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <input type="number" step="0.01" value={editPlayedValue} onChange={(e) => setEditPlayedValue(e.target.value)}
-                                className="w-16 sm:w-20 px-1.5 py-1 rounded border border-red-300 text-xs sm:text-sm text-center focus:ring-1 focus:ring-red-400 outline-none" autoFocus
-                                onKeyDown={(e) => { if (e.key === "Enter") savePlayedAmount(m.id); if (e.key === "Escape") { setEditingPlayedId(null); setEditPlayedValue(""); } }} />
-                              <button onClick={() => savePlayedAmount(m.id)} className="text-emerald-600 hover:text-emerald-700 text-xs">✓</button>
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editPlayedValue}
+                                onChange={(e) => setEditPlayedValue(e.target.value)}
+                                onBlur={() => {
+                                  if (skipPlayedAutosaveRef.current) {
+                                    skipPlayedAutosaveRef.current = false;
+                                    return;
+                                  }
+                                  void savePlayedAmount(m.id);
+                                }}
+                                className="w-16 sm:w-20 px-1.5 py-1 rounded border border-red-300 text-xs sm:text-sm text-center focus:ring-1 focus:ring-red-400 outline-none"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") void savePlayedAmount(m.id);
+                                  if (e.key === "Escape") {
+                                    skipPlayedAutosaveRef.current = true;
+                                    setEditingPlayedId(null);
+                                    setEditPlayedValue("");
+                                  }
+                                }}
+                              />
+                              <p className="text-[10px] text-gray-400">Auto</p>
                             </div>
                           ) : (
                             <button onClick={() => { setEditingPlayedId(m.id); setEditPlayedValue(m.halfPlayed.toFixed(2)); }} className="text-xs sm:text-sm text-red-500 hover:underline font-medium">
