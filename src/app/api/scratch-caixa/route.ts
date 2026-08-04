@@ -43,11 +43,13 @@ export async function GET() {
     const amountPerPerson = parseFloat(month.amountPerPerson);
     const totalCollected = totalPaid * amountPerPerson;
     const savedAmount = totalCollected / 2;
-    const defaultPlayed = totalCollected / 2;
+    const defaultPlayed = 0;
     const rawPlayed = month.playedAmount === null ? defaultPlayed : parseFloat(month.playedAmount);
     const playedAmount = clampCurrency(rawPlayed, 0, totalCollected);
 
-    runningTotal += savedAmount + playedAmount;
+    if (playedAmount > 0) {
+      runningTotal += savedAmount + playedAmount;
+    }
 
     result.push({
       id: month.id,
