@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { scratchMonths, scratchPayments, scratchCaixaInitial } from "@/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 async function getInitialBalance(): Promise<number> {
   const rows = await db.select().from(scratchCaixaInitial);
   if (rows.length === 0) return 0;
@@ -40,10 +42,10 @@ export async function GET() {
     const totalPaid = paidPeople[0]?.count ?? 0;
     const amountPerPerson = parseFloat(month.amountPerPerson);
     const totalCollected = totalPaid * amountPerPerson;
+    const savedAmount = totalCollected / 2;
     const defaultPlayed = totalCollected / 2;
     const rawPlayed = month.playedAmount === null ? defaultPlayed : parseFloat(month.playedAmount);
     const playedAmount = clampCurrency(rawPlayed, 0, totalCollected);
-    const savedAmount = totalCollected - playedAmount;
 
     runningTotal += savedAmount;
 
