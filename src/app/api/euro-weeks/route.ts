@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { euroWeeks } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const weeks = await db.select().from(euroWeeks).orderBy(desc(euroWeeks.year), desc(euroWeeks.weekNumber));
 
