@@ -1,46 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface LoadingScreenProps {
+  progress: number;
+  status: string;
+  finished: boolean;
   onFinished: () => void;
 }
 
-export default function LoadingScreen({ onFinished }: LoadingScreenProps) {
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("A iniciar...");
+export default function LoadingScreen({
+  progress,
+  status,
+  finished,
+  onFinished,
+}: LoadingScreenProps) {
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const steps = [
-      { at: 10, text: "A ligar à base de dados..." },
-      { at: 30, text: "A carregar pessoas..." },
-      { at: 50, text: "A carregar raspadinhas..." },
-      { at: 70, text: "A carregar Euromilhões..." },
-      { at: 90, text: "Quase pronto..." },
-      { at: 100, text: "Tudo pronto! 🎉" },
-    ];
+    if (!finished) return;
 
-    let current = 0;
-    const interval = setInterval(() => {
-      current += 2;
-      if (current > 100) current = 100;
-      setProgress(current);
+    const fadeTimer = setTimeout(() => {
+      setFadeOut(true);
+      setTimeout(onFinished, 400);
+    }, 300);
 
-      const step = [...steps].reverse().find((s) => current >= s.at);
-      if (step) setStatus(step.text);
-
-      if (current >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setFadeOut(true);
-          setTimeout(onFinished, 400);
-        }, 400);
-      }
-    }, 40);
-
-    return () => clearInterval(interval);
-  }, [onFinished]);
+    return () => clearTimeout(fadeTimer);
+  }, [finished, onFinished]);
 
   return (
     <div
@@ -48,28 +34,32 @@ export default function LoadingScreen({ onFinished }: LoadingScreenProps) {
         fadeOut ? "animate-fade-out" : ""
       }`}
     >
-      <div className="flex flex-col items-center gap-6 px-6 w-full max-w-sm">
+      <div className="flex w-full max-w-sm flex-col items-center gap-6 px-6">
         <div className="animate-float">
-          <div className="w-24 h-24 rounded-3xl bg-white/90 backdrop-blur flex items-center justify-center text-5xl shadow-xl shadow-blue-500/20">
+          <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/90 text-5xl shadow-xl shadow-blue-500/20 backdrop-blur">
             🎰
           </div>
         </div>
 
         <div className="text-center">
-          <h1 className="text-3xl font-extrabold text-white drop-shadow-md tracking-tight">Gestão de Jogos</h1>
-          <p className="text-base text-white/80 mt-1 font-medium">Raspadinhas & Euromilhões</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
+            Gestão de Jogos
+          </h1>
+          <p className="mt-1 text-base font-medium text-white/80">
+            Raspadinhas & Euromilhões
+          </p>
         </div>
 
         <div className="w-full">
-          <div className="w-full h-3 rounded-full bg-white/30 backdrop-blur overflow-hidden shadow-inner">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-white/30 shadow-inner backdrop-blur">
             <div
-              className="h-full rounded-full bg-white transition-all duration-100 ease-out shadow-md"
+              className="h-full rounded-full bg-white shadow-md transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex justify-between mt-2">
-            <p className="text-sm text-white/80 font-medium">{status}</p>
-            <p className="text-sm text-white/80 font-bold">{progress}%</p>
+          <div className="mt-2 flex justify-between gap-3">
+            <p className="text-sm font-medium text-white/80">{status}</p>
+            <p className="text-sm font-bold text-white/80">{progress}%</p>
           </div>
         </div>
       </div>
