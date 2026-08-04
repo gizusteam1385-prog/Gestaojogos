@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { scratchPayments, people, scratchMonths } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const monthId = req.nextUrl.searchParams.get("monthId");
 
