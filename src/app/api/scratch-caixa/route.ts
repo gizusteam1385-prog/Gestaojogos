@@ -47,7 +47,7 @@ export async function GET() {
     const rawPlayed = month.playedAmount === null ? defaultPlayed : parseFloat(month.playedAmount);
     const playedAmount = clampCurrency(rawPlayed, 0, totalCollected);
 
-    runningTotal += savedAmount;
+    runningTotal += savedAmount + playedAmount;
 
     result.push({
       id: month.id,
