@@ -129,48 +129,64 @@ export default function Home() {
   const [showAlert, setShowAlert] = useState(true);
 
   const preloadAllData = useCallback(async () => {
-    try {
-      setLoadingProgress(10);
-      setLoadingStatus("A ligar à base de dados...");
+    setLoadingProgress(10);
+    setLoadingStatus("A ligar à base de dados...");
 
-      setLoadingProgress(25);
-      setLoadingStatus("A pedir todos os dados ao servidor...");
-      const response = await fetch(`/api/bootstrap?t=${Date.now()}`, { cache: "no-store" });
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      try {
+        setLoadingProgress(20 + attempt * 8);
+        setLoadingStatus(
+          attempt === 1
+            ? "A pedir todos os dados ao servidor..."
+            : `A tentar novamente carregar os dados (${attempt}/5)...`,
+        );
 
-      setLoadingProgress(60);
-      setLoadingStatus("A processar dados das raspadinhas...");
-      const data = await response.json();
+        const response = await fetch(`/api/bootstrap?t=${Date.now()}`, { cache: "no-store" });
 
-      setLoadingProgress(82);
-      setLoadingStatus("A processar dados do Euromilhões...");
-      setInitialData({
-        people: Array.isArray(data?.people) ? data.people : [],
-        scratchMonths: Array.isArray(data?.scratchMonths) ? data.scratchMonths : [],
-        scratchPayments: Array.isArray(data?.scratchPayments) ? data.scratchPayments : [],
-        scratchCaixa: {
-          months: data?.scratchCaixa?.months || [],
-          initialBalance: data?.scratchCaixa?.initialBalance || 0,
-          totalCaixa: data?.scratchCaixa?.totalCaixa || 0,
-        },
-        euroFund: {
-          transactions: data?.euroFund?.transactions || [],
-          summary: data?.euroFund?.summary || DEFAULT_INITIAL_DATA.euroFund.summary,
-        },
-        euroWeeks: {
-          weeks: data?.euroWeeks?.weeks || [],
-          summary: data?.euroWeeks?.summary || DEFAULT_INITIAL_DATA.euroWeeks.summary,
-        },
-      });
+        if (!response.ok) {
+          throw new Error(`Bootstrap failed with ${response.status}`);
+        }
 
-      setLoadingProgress(100);
-      setLoadingStatus("Tudo pronto! 🎉");
-      setPreloadFinished(true);
-    } catch {
-      setLoadingProgress(100);
-      setLoadingStatus("Aplicação pronta.");
-      setInitialData(DEFAULT_INITIAL_DATA);
-      setPreloadFinished(true);
+        setLoadingProgress(65);
+        setLoadingStatus("A processar dados das raspadinhas...");
+        const data = await response.json();
+
+        setLoadingProgress(82);
+        setLoadingStatus("A processar dados do Euromilhões...");
+        setInitialData({
+          people: Array.isArray(data?.people) ? data.people : [],
+          scratchMonths: Array.isArray(data?.scratchMonths) ? data.scratchMonths : [],
+          scratchPayments: Array.isArray(data?.scratchPayments) ? data.scratchPayments : [],
+          scratchCaixa: {
+            months: data?.scratchCaixa?.months || [],
+            initialBalance: data?.scratchCaixa?.initialBalance || 0,
+            totalCaixa: data?.scratchCaixa?.totalCaixa || 0,
+          },
+          euroFund: {
+            transactions: data?.euroFund?.transactions || [],
+            summary: data?.euroFund?.summary || DEFAULT_INITIAL_DATA.euroFund.summary,
+          },
+          euroWeeks: {
+            weeks: data?.euroWeeks?.weeks || [],
+            summary: data?.euroWeeks?.summary || DEFAULT_INITIAL_DATA.euroWeeks.summary,
+          },
+        });
+
+        setLoadingProgress(100);
+        setLoadingStatus("Tudo pronto! 🎉");
+        setPreloadFinished(true);
+        return;
+      } catch {
+        if (attempt < 5) {
+          await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+        }
+      }
     }
+
+    setLoadingProgress(100);
+    setLoadingStatus("Sem ligação à base de dados. Tenta novamente.");
+    setInitialData(DEFAULT_INITIAL_DATA);
+    setPreloadFinished(true);
   }, []);
 
   const checkEuroBalance = useCallback(async () => {
