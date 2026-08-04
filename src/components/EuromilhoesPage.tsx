@@ -20,6 +20,12 @@ interface EuroWeek {
   createdAt: string;
 }
 
+interface EuromilhoesInitialData {
+  transactions: Transaction[];
+  totalDeposits: number;
+  weeks: EuroWeek[];
+}
+
 const WEEK_COST = 25;
 const AUTO_REFRESH_MS = 10000;
 
@@ -52,15 +58,20 @@ function formatFridayFull(date: Date): string {
   return date.toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
 }
 
-export default function EuromilhoesPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [totalDeposits, setTotalDeposits] = useState(0);
-  const [weeks, setWeeks] = useState<EuroWeek[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function EuromilhoesPage({
+  initialData,
+}: {
+  initialData?: EuromilhoesInitialData;
+}) {
+  const [transactions, setTransactions] = useState<Transaction[]>(initialData?.transactions ?? []);
+  const [totalDeposits, setTotalDeposits] = useState(initialData?.totalDeposits ?? 0);
+  const [weeks, setWeeks] = useState<EuroWeek[]>(initialData?.weeks ?? []);
+  const [loading, setLoading] = useState(!initialData);
   const [amount, setAmount] = useState("");
   const [editingWeekId, setEditingWeekId] = useState<number | null>(null);
   const [editPrizeValue, setEditPrizeValue] = useState("");
   const syncing = useRef(false);
+  const skipPrizeAutosaveRef = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -86,6 +97,27 @@ export default function EuromilhoesPage() {
 
     return () => clearInterval(interval);
   }, [loadData]);
+
+  useEffect(() => {
+    const persistPendingChanges = () => {
+      if (editingWeekId !== null && editPrizeValue.trim() !== "") {
+        fetch("/api/euro-weeks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingWeekId, prize: editPrizeValue }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+    };
+
+    window.addEventListener("beforeunload", persistPendingChanges);
+    window.addEventListener("pagehide", persistPendingChanges);
+
+    return () => {
+      window.removeEventListener("beforeunload", persistPendingChanges);
+      window.removeEventListener("pagehide", persistPendingChanges);
+    };
+  }, [editingWeekId, editPrizeValue]);
 
   useEffect(() => {
     if (loading || syncing.current) return;
@@ -153,10 +185,16 @@ export default function EuromilhoesPage() {
     } catch (error) { console.error("Erro:", error); }
   }
 
-  async function savePrize(id: number) {
+  async function savePrize(id: number, value = editPrizeValue) {
     try {
-      await fetch("/api/euro-weeks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, prize: editPrizeValue }) });
-      setEditingWeekId(null); setEditPrizeValue(""); await loadData();
+      await fetch("/api/euro-weeks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, prize: value }),
+      });
+      setEditingWeekId(null);
+      setEditPrizeValue("");
+      await loadData();
     } catch (error) { console.error("Erro:", error); }
   }
 
@@ -254,11 +292,31 @@ export default function EuromilhoesPage() {
                       <td className="px-1 py-1.5 sm:py-2 text-xs sm:text-sm text-red-500">-{cost.toFixed(0)}€</td>
                       <td className="px-1 py-1.5 sm:py-2">
                         {editingWeekId === week.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <input type="number" step="0.01" value={editPrizeValue} onChange={(e) => setEditPrizeValue(e.target.value)}
-                              className="w-14 sm:w-16 rounded border border-emerald-300 px-1 py-0.5 sm:py-1 text-center text-xs sm:text-sm outline-none focus:ring-1 focus:ring-emerald-400" autoFocus
-                              onKeyDown={(e) => { if (e.key === "Enter") savePrize(week.id); if (e.key === "Escape") { setEditingWeekId(null); setEditPrizeValue(""); } }} />
-                            <button onClick={() => savePrize(week.id)} className="text-xs text-emerald-600 hover:text-emerald-700">✓</button>
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editPrizeValue}
+                              onChange={(e) => setEditPrizeValue(e.target.value)}
+                              onBlur={() => {
+                                if (skipPrizeAutosaveRef.current) {
+                                  skipPrizeAutosaveRef.current = false;
+                                  return;
+                                }
+                                void savePrize(week.id);
+                              }}
+                              className="w-14 sm:w-16 rounded border border-emerald-300 px-1 py-0.5 sm:py-1 text-center text-xs sm:text-sm outline-none focus:ring-1 focus:ring-emerald-400"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void savePrize(week.id);
+                                if (e.key === "Escape") {
+                                  skipPrizeAutosaveRef.current = true;
+                                  setEditingWeekId(null);
+                                  setEditPrizeValue("");
+                                }
+                              }}
+                            />
+                            <p className="text-[10px] text-gray-400">Auto</p>
                           </div>
                         ) : (
                           <button onClick={() => { setEditingWeekId(week.id); setEditPrizeValue(prize.toString()); }} className="text-xs sm:text-sm font-medium text-emerald-600 hover:underline">
