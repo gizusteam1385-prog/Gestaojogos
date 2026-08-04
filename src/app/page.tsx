@@ -130,61 +130,35 @@ export default function Home() {
 
   const preloadAllData = useCallback(async () => {
     try {
-      setLoadingProgress(8);
+      setLoadingProgress(10);
       setLoadingStatus("A ligar à base de dados...");
 
-      setLoadingProgress(20);
-      setLoadingStatus("A carregar pessoas e meses...");
-      const [peopleRes, scratchMonthsRes] = await Promise.all([
-        fetch("/api/people?preload=1", { cache: "no-store" }),
-        fetch("/api/scratch-months?preload=1", { cache: "no-store" }),
-      ]);
+      setLoadingProgress(25);
+      setLoadingStatus("A pedir todos os dados ao servidor...");
+      const response = await fetch(`/api/bootstrap?t=${Date.now()}`, { cache: "no-store" });
 
-      const people = await peopleRes.json();
-      const scratchMonths = await scratchMonthsRes.json();
+      setLoadingProgress(60);
+      setLoadingStatus("A processar dados das raspadinhas...");
+      const data = await response.json();
 
-      setLoadingProgress(40);
-      setLoadingStatus("A carregar caixa das raspadinhas...");
-      const [scratchCaixaRes, euroFundRes, euroWeeksRes] = await Promise.all([
-        fetch("/api/scratch-caixa?preload=1", { cache: "no-store" }),
-        fetch("/api/euro-fund?preload=1", { cache: "no-store" }),
-        fetch("/api/euro-weeks?preload=1", { cache: "no-store" }),
-      ]);
-
-      const scratchCaixa = await scratchCaixaRes.json();
-      const euroFund = await euroFundRes.json();
-      const euroWeeks = await euroWeeksRes.json();
-
-      setLoadingProgress(65);
-      setLoadingStatus("A carregar pagamentos das raspadinhas...");
-      let scratchPayments: ScratchPayment[] = [];
-      if (Array.isArray(scratchMonths) && scratchMonths.length > 0) {
-        const paymentsRes = await fetch(
-          `/api/scratch-payments?monthId=${scratchMonths[0].id}&preload=1`,
-          { cache: "no-store" },
-        );
-        const paymentsData = await paymentsRes.json();
-        scratchPayments = Array.isArray(paymentsData) ? paymentsData : [];
-      }
-
-      setLoadingProgress(85);
-      setLoadingStatus("A preparar a aplicação...");
+      setLoadingProgress(82);
+      setLoadingStatus("A processar dados do Euromilhões...");
       setInitialData({
-        people: Array.isArray(people) ? people : [],
-        scratchMonths: Array.isArray(scratchMonths) ? scratchMonths : [],
-        scratchPayments,
+        people: Array.isArray(data?.people) ? data.people : [],
+        scratchMonths: Array.isArray(data?.scratchMonths) ? data.scratchMonths : [],
+        scratchPayments: Array.isArray(data?.scratchPayments) ? data.scratchPayments : [],
         scratchCaixa: {
-          months: scratchCaixa?.months || [],
-          initialBalance: scratchCaixa?.initialBalance || 0,
-          totalCaixa: scratchCaixa?.totalCaixa || 0,
+          months: data?.scratchCaixa?.months || [],
+          initialBalance: data?.scratchCaixa?.initialBalance || 0,
+          totalCaixa: data?.scratchCaixa?.totalCaixa || 0,
         },
         euroFund: {
-          transactions: euroFund?.transactions || [],
-          summary: euroFund?.summary || DEFAULT_INITIAL_DATA.euroFund.summary,
+          transactions: data?.euroFund?.transactions || [],
+          summary: data?.euroFund?.summary || DEFAULT_INITIAL_DATA.euroFund.summary,
         },
         euroWeeks: {
-          weeks: euroWeeks?.weeks || [],
-          summary: euroWeeks?.summary || DEFAULT_INITIAL_DATA.euroWeeks.summary,
+          weeks: data?.euroWeeks?.weeks || [],
+          summary: data?.euroWeeks?.summary || DEFAULT_INITIAL_DATA.euroWeeks.summary,
         },
       });
 
