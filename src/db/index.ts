@@ -1,11 +1,18 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-const databaseUrl = process.env.DATABASE_URL;
+const SUPABASE_URL =
+  "postgresql://postgres.uahzknhujfmvevymfaxm:mEGERNpMi7qwoORD@aws-0-eu-west-1.pooler.supabase.com:6543/postgres";
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
+const envUrl = process.env.DATABASE_URL;
+
+// Use Supabase if DATABASE_URL is missing or points to localhost
+const isLocal =
+  !envUrl ||
+  envUrl.includes("127.0.0.1") ||
+  envUrl.includes("localhost");
+
+const databaseUrl = isLocal ? SUPABASE_URL : envUrl;
 
 const globalForDb = globalThis as typeof globalThis & {
   __arenaNextJsPostgresqlPool?: Pool;
@@ -19,13 +26,13 @@ const databaseHost = (() => {
   }
 })();
 
-const isLocalDatabaseHost =
+const isLocalHost =
   databaseHost === "127.0.0.1" || databaseHost === "localhost";
 
 const shouldUseSsl =
   databaseHost.includes("supabase.com") ||
   databaseHost.includes("pooler.supabase.com") ||
-  (!isLocalDatabaseHost && databaseHost.length > 0);
+  (!isLocalHost && databaseHost.length > 0);
 
 export const pool =
   globalForDb.__arenaNextJsPostgresqlPool ??
