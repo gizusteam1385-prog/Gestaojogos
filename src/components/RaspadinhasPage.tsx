@@ -40,6 +40,8 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const AUTO_REFRESH_MS = 10000;
+
 export default function RaspadinhasPage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [months, setMonths] = useState<ScratchMonth[]>([]);
@@ -63,37 +65,61 @@ export default function RaspadinhasPage() {
   const [editPlayedValue, setEditPlayedValue] = useState("");
 
   const loadPayments = useCallback(async (monthId: number) => {
-    const res = await fetch(`/api/scratch-payments?monthId=${monthId}`);
+    const res = await fetch(`/api/scratch-payments?monthId=${monthId}&t=${Date.now()}`, { cache: "no-store" });
     const data = await res.json();
     setPayments(Array.isArray(data) ? data : []);
   }, []);
 
-  useEffect(() => { loadData(); }, []);
-  useEffect(() => { if (selectedMonth) loadPayments(selectedMonth.id); }, [selectedMonth, loadPayments]);
-  useEffect(() => { if (tab === "caixa") loadCaixa(); }, [tab]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
-      const [peopleRes, monthsRes] = await Promise.all([fetch("/api/people"), fetch("/api/scratch-months")]);
+      const [peopleRes, monthsRes] = await Promise.all([
+        fetch(`/api/people?t=${Date.now()}`, { cache: "no-store" }),
+        fetch(`/api/scratch-months?t=${Date.now()}`, { cache: "no-store" }),
+      ]);
       const peopleData = await peopleRes.json();
       const monthsData = await monthsRes.json();
       setPeople(Array.isArray(peopleData) ? peopleData : []);
       setMonths(Array.isArray(monthsData) ? monthsData : []);
-      if (monthsData.length > 0 && !selectedMonth) setSelectedMonth(monthsData[0]);
+      if (monthsData.length > 0) {
+        setSelectedMonth((current) => {
+          if (!current) return monthsData[0];
+          return monthsData.find((month: ScratchMonth) => month.id === current.id) ?? monthsData[0];
+        });
+      } else {
+        setSelectedMonth(null);
+      }
     } catch (error) { console.error("Erro:", error); }
     finally { setLoading(false); }
-  }
+  }, []);
 
-  async function loadCaixa() {
+  const loadCaixa = useCallback(async () => {
     try {
-      const res = await fetch("/api/scratch-caixa");
+      const res = await fetch(`/api/scratch-caixa?t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       setCaixaMonths(data.months || []);
       setTotalCaixa(data.totalCaixa || 0);
       setInitialBalance(data.initialBalance || 0);
       setEditInitialValue((data.initialBalance || 0).toString());
     } catch (error) { console.error("Erro:", error); }
-  }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (selectedMonth) loadPayments(selectedMonth.id); else setPayments([]); }, [selectedMonth, loadPayments]);
+  useEffect(() => { if (tab === "caixa") loadCaixa(); }, [tab, loadCaixa]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+      if (selectedMonth) {
+        loadPayments(selectedMonth.id);
+      }
+      if (tab === "caixa") {
+        loadCaixa();
+      }
+    }, AUTO_REFRESH_MS);
+
+    return () => clearInterval(interval);
+  }, [loadData, loadPayments, loadCaixa, selectedMonth, tab]);
 
   async function saveInitialBalance() {
     try {
