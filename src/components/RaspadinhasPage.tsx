@@ -69,7 +69,7 @@ export default function RaspadinhasPage({
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddMonth, setShowAddMonth] = useState(false);
   const [loading, setLoading] = useState(!initialData);
-  const [tab, setTab] = useState<"months" | "people" | "caixa">("months");
+  const [tab, setTab] = useState<"people" | "months" | "paid" | "caixa">("paid");
 
   const [caixaMonths, setCaixaMonths] = useState<CaixaMonth[]>(initialData?.caixa.months ?? []);
   const [totalCaixa, setTotalCaixa] = useState(initialData?.caixa.totalCaixa ?? 0);
@@ -270,24 +270,27 @@ export default function RaspadinhasPage({
 
   return (
     <div className="flex flex-col h-full animate-fade-in gap-3">
-      {/* Sub-tabs */}
-      <div className="flex gap-2 w-full shrink-0">
-        {(["people", "months", "caixa"] as const).map((t) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full shrink-0">
+        {([
+          ["people", "👥 Pessoas"],
+          ["months", "📅 Meses"],
+          ["paid", "✅ Quem pagou"],
+          ["caixa", "💰 Caixa"],
+        ] as const).map(([value, label]) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              tab === t
+            key={value}
+            onClick={() => setTab(value)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              tab === value
                 ? "bg-sky-500 text-white shadow-md"
                 : "bg-white text-gray-600 border border-sky-200 hover:bg-sky-50"
             }`}
           >
-            {t === "people" ? "👥 Pessoas" : t === "months" ? "📅 Meses" : "💰 Caixa"}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* CAIXA */}
       {tab === "caixa" && (
         <div className="flex-1 flex flex-col min-h-0 gap-3">
           <div className="grid grid-cols-2 gap-2 shrink-0">
@@ -321,7 +324,13 @@ export default function RaspadinhasPage({
                   <p className="text-[10px] text-gray-400">Guarda automaticamente</p>
                 </div>
               ) : (
-                <button onClick={() => { setEditingInitial(true); setEditInitialValue(initialBalance.toString()); }} className="text-xl font-bold text-sky-700 hover:underline mt-1">
+                <button
+                  onClick={() => {
+                    setEditingInitial(true);
+                    setEditInitialValue(initialBalance.toString());
+                  }}
+                  className="text-xl font-bold text-sky-700 hover:underline mt-1"
+                >
                   {initialBalance.toFixed(2)}€
                 </button>
               )}
@@ -334,7 +343,9 @@ export default function RaspadinhasPage({
 
           <div className="flex-1 flex flex-col min-h-0 bg-white rounded-xl border border-sky-200 p-3">
             {caixaMonths.length === 0 ? (
-              <p className="text-center text-gray-400 flex-1 flex items-center justify-center text-sm">Crie meses e registe pagamentos para ver a caixa.</p>
+              <p className="text-center text-gray-400 flex-1 flex items-center justify-center text-sm">
+                Crie meses e registe pagamentos para ver a caixa.
+              </p>
             ) : (
               <div className="flex-1 overflow-y-auto min-h-0">
                 <table className="w-full table-fixed">
@@ -350,7 +361,9 @@ export default function RaspadinhasPage({
                   <tbody className="divide-y divide-gray-100">
                     {caixaMonths.map((m) => (
                       <tr key={m.id} className="hover:bg-sky-50 transition-colors text-center">
-                        <td className="py-2 px-1 text-xs sm:text-sm font-medium text-gray-800">{MONTH_NAMES[m.month].slice(0, 3)} <span className="text-gray-400">{m.year}</span></td>
+                        <td className="py-2 px-1 text-xs sm:text-sm font-medium text-gray-800">
+                          {MONTH_NAMES[m.month].slice(0, 3)} <span className="text-gray-400">{m.year}</span>
+                        </td>
                         <td className="py-2 px-1 text-xs sm:text-sm text-gray-700">{m.totalCollected.toFixed(2)}€</td>
                         <td className="py-2 px-1 text-xs sm:text-sm text-sky-600 font-medium">{m.halfSaved.toFixed(2)}€</td>
                         <td className="py-2 px-1">
@@ -382,13 +395,21 @@ export default function RaspadinhasPage({
                               <p className="text-[10px] text-gray-400">Auto</p>
                             </div>
                           ) : (
-                            <button onClick={() => { setEditingPlayedId(m.id); setEditPlayedValue(m.halfPlayed.toFixed(2)); }} className="text-xs sm:text-sm text-red-500 hover:underline font-medium">
+                            <button
+                              onClick={() => {
+                                setEditingPlayedId(m.id);
+                                setEditPlayedValue(m.halfPlayed.toFixed(2));
+                              }}
+                              className="text-xs sm:text-sm text-red-500 hover:underline font-medium"
+                            >
                               {m.halfPlayed.toFixed(2)}€
                             </button>
                           )}
                         </td>
                         <td className="py-2 px-1">
-                          <span className="text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">{m.runningTotal.toFixed(2)}€</span>
+                          <span className="text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                            {m.runningTotal.toFixed(2)}€
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -400,19 +421,30 @@ export default function RaspadinhasPage({
         </div>
       )}
 
-      {/* PEOPLE */}
       {tab === "people" && (
         <div className="flex-1 flex flex-col min-h-0 bg-white rounded-xl border border-sky-200 p-4">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h3 className="text-base font-semibold text-gray-800">Gerir Pessoas</h3>
-            <button onClick={() => setShowAddPerson(!showAddPerson)} className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">+ Adicionar</button>
+            <button
+              onClick={() => setShowAddPerson(!showAddPerson)}
+              className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
+            >
+              + Adicionar
+            </button>
           </div>
 
           {showAddPerson && (
             <div className="mb-3 p-3 bg-sky-50 rounded-lg border border-sky-200 animate-fade-in shrink-0">
               <div className="flex gap-2">
-                <input type="text" value={newPersonName} onChange={(e) => setNewPersonName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addPerson()}
-                  placeholder="Nome da pessoa" className="flex-1 px-3 py-1.5 rounded-lg border border-sky-300 focus:ring-2 focus:ring-sky-400 outline-none text-sm" autoFocus />
+                <input
+                  type="text"
+                  value={newPersonName}
+                  onChange={(e) => setNewPersonName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addPerson()}
+                  placeholder="Nome da pessoa"
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-sky-300 focus:ring-2 focus:ring-sky-400 outline-none text-sm"
+                  autoFocus
+                />
                 <button onClick={addPerson} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Guardar</button>
                 <button onClick={() => { setShowAddPerson(false); setNewPersonName(""); }} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium">✕</button>
               </div>
@@ -447,56 +479,81 @@ export default function RaspadinhasPage({
         </div>
       )}
 
-      {/* MONTHS */}
       {tab === "months" && (
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
-          <div className="lg:w-1/3 flex flex-col bg-white rounded-xl border border-sky-200 p-4 min-h-0 shrink-0 lg:shrink lg:max-h-full max-h-[48%]">
-            <div className="flex items-center justify-between mb-3 shrink-0">
-              <h3 className="text-base font-semibold text-gray-800">Meses</h3>
-              <button onClick={() => setShowAddMonth(!showAddMonth)} className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">+ Novo</button>
-            </div>
+        <div className="flex-1 flex flex-col min-h-0 bg-white rounded-xl border border-sky-200 p-4">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h3 className="text-base font-semibold text-gray-800">Meses</h3>
+            <button onClick={() => setShowAddMonth(!showAddMonth)} className="bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">+ Novo</button>
+          </div>
 
-            {showAddMonth && (
-              <div className="mb-3 p-2.5 bg-sky-50 rounded-lg border border-sky-200 animate-fade-in shrink-0">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
-                  <div>
-                    <label className="block text-[11px] text-gray-500 mb-1">Mês</label>
-                    <select value={newMonthMonth} onChange={(e) => setNewMonthMonth(parseInt(e.target.value))}
-                      className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none">
-                      {MONTH_NAMES.slice(1).map((name, i) => (<option key={i + 1} value={i + 1}>{name}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-gray-500 mb-1">Ano</label>
-                    <input type="number" value={newMonthYear} onChange={(e) => setNewMonthYear(parseInt(e.target.value))}
-                      className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-gray-500 mb-1">€/pessoa</label>
-                    <input type="number" step="0.50" value={newMonthAmount} onChange={(e) => setNewMonthAmount(e.target.value)}
-                      className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none" />
-                  </div>
-                  <div className="col-span-2 sm:col-span-1 flex gap-2">
-                    <button onClick={addMonth} className="flex-1 bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Criar</button>
-                    <button onClick={() => setShowAddMonth(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium">✕</button>
-                  </div>
+          {showAddMonth && (
+            <div className="mb-3 p-2.5 bg-sky-50 rounded-lg border border-sky-200 animate-fade-in shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Mês</label>
+                  <select value={newMonthMonth} onChange={(e) => setNewMonthMonth(parseInt(e.target.value))} className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none">
+                    {MONTH_NAMES.slice(1).map((name, i) => (<option key={i + 1} value={i + 1}>{name}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Ano</label>
+                  <input type="number" value={newMonthYear} onChange={(e) => setNewMonthYear(parseInt(e.target.value))} className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">€/pessoa</label>
+                  <input type="number" step="0.50" value={newMonthAmount} onChange={(e) => setNewMonthAmount(e.target.value)} className="w-full px-2 py-1.5 rounded-lg border border-sky-300 text-sm focus:ring-2 focus:ring-sky-400 outline-none" />
+                </div>
+                <div className="col-span-2 sm:col-span-1 flex gap-2">
+                  <button onClick={addMonth} className="flex-1 bg-sky-500 hover:bg-sky-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Criar</button>
+                  <button onClick={() => setShowAddMonth(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium">✕</button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {months.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4 flex-1 flex items-center justify-center">Nenhum mês criado</p>
+          ) : (
+            <div className="flex-1 overflow-y-auto min-h-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+              {months.map((month) => (
+                <div
+                  key={month.id}
+                  className={`flex items-center justify-between p-3 rounded-lg transition-all border ${selectedMonth?.id === month.id ? "bg-sky-100 border-sky-300" : "bg-gray-50 border-transparent hover:bg-sky-50"}`}
+                  onClick={() => setSelectedMonth(month)}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{MONTH_NAMES[month.month]} {month.year}</p>
+                    <p className="text-xs text-gray-500">{month.amountPerPerson}€/pessoa</p>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); deleteMonth(month.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "paid" && (
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0">
+          <div className="lg:w-80 flex flex-col bg-white rounded-xl border border-sky-200 p-4 min-h-0 shrink-0 lg:max-h-full max-h-[34%]">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <h3 className="text-base font-semibold text-gray-800">Quem pagou</h3>
+              <span className="text-xs text-gray-500">{months.length} mês{months.length === 1 ? "" : "es"}</span>
+            </div>
 
             {months.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4 flex-1 flex items-center justify-center">Nenhum mês criado</p>
+              <p className="text-sm text-gray-400 text-center py-4 flex-1 flex items-center justify-center">Cria primeiro um mês</p>
             ) : (
               <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5">
                 {months.map((month) => (
-                  <div key={month.id} className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all border ${selectedMonth?.id === month.id ? "bg-sky-100 border-sky-300" : "bg-gray-50 border-transparent hover:bg-sky-50"}`}
-                    onClick={() => setSelectedMonth(month)}>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{MONTH_NAMES[month.month]} {month.year}</p>
-                      <p className="text-xs text-gray-500">{month.amountPerPerson}€/pessoa</p>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); deleteMonth(month.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
-                  </div>
+                  <button
+                    key={month.id}
+                    onClick={() => setSelectedMonth(month)}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${selectedMonth?.id === month.id ? "bg-sky-100 border-sky-300" : "bg-gray-50 border-transparent hover:bg-sky-50"}`}
+                  >
+                    <p className="text-sm font-semibold text-gray-800">{MONTH_NAMES[month.month]} {month.year}</p>
+                    <p className="text-xs text-gray-500">{month.amountPerPerson}€/pessoa</p>
+                  </button>
                 ))}
               </div>
             )}
@@ -526,23 +583,23 @@ export default function RaspadinhasPage({
                 <div className="flex-1 overflow-y-auto min-h-0 space-y-1.5">
                   {payments.map((payment) => (
                     <div key={payment.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${payment.paid ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200 hover:border-red-300"}`}>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => togglePayment(payment)} className={`w-7 h-7 rounded-full flex items-center justify-center text-sm transition-all ${payment.paid ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400 hover:bg-red-200"}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <button onClick={() => togglePayment(payment)} className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-sm transition-all ${payment.paid ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400 hover:bg-red-200"}`}>
                           {payment.paid ? "✓" : ""}
                         </button>
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">{payment.personName}</p>
-                          <p className="text-xs text-gray-400">{payment.paid ? `Pago${payment.paidAt ? ` em ${new Date(payment.paidAt).toLocaleDateString("pt-PT")}` : ""}` : "Pendente"}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{payment.personName}</p>
+                          <p className="text-xs text-gray-400 truncate">{payment.paid ? `Pago${payment.paidAt ? ` em ${new Date(payment.paidAt).toLocaleDateString("pt-PT")}` : ""}` : "Pendente"}</p>
                         </div>
                       </div>
-                      <span className={`text-sm font-bold ${payment.paid ? "text-emerald-600" : "text-red-500"}`}>{selectedMonth.amountPerPerson}€</span>
+                      <span className={`text-sm font-bold shrink-0 ${payment.paid ? "text-emerald-600" : "text-red-500"}`}>{selectedMonth.amountPerPerson}€</span>
                     </div>
                   ))}
                 </div>
 
                 {availablePeople.length > 0 && (
                   <div className="border-t border-gray-200 pt-2 mt-2 shrink-0">
-                    <p className="text-xs font-medium text-gray-500 mb-1">Adicionar pessoa:</p>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Adicionar pessoa a este mês:</p>
                     <div className="flex flex-wrap gap-1.5">
                       {availablePeople.map((person) => (
                         <button key={person.id} onClick={() => addPersonToMonth(person.id)} className="bg-sky-100 hover:bg-sky-200 text-sky-700 px-2.5 py-1 rounded-lg text-xs font-medium">
@@ -556,8 +613,8 @@ export default function RaspadinhasPage({
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-3xl mb-2">📅</div>
-                  <p className="text-gray-400 text-sm">Selecione um mês</p>
+                  <div className="text-3xl mb-2">✅</div>
+                  <p className="text-gray-400 text-sm">Seleciona um mês para ver quem pagou</p>
                 </div>
               </div>
             )}
