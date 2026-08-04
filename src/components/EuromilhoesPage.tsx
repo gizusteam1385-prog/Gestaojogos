@@ -21,6 +21,7 @@ interface EuroWeek {
 }
 
 const WEEK_COST = 25;
+const AUTO_REFRESH_MS = 10000;
 
 function getNextFriday(date: Date): Date {
   const d = new Date(date);
@@ -63,7 +64,10 @@ export default function EuromilhoesPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [fundRes, weeksRes] = await Promise.all([fetch("/api/euro-fund"), fetch("/api/euro-weeks")]);
+      const [fundRes, weeksRes] = await Promise.all([
+        fetch(`/api/euro-fund?t=${Date.now()}`, { cache: "no-store" }),
+        fetch(`/api/euro-weeks?t=${Date.now()}`, { cache: "no-store" }),
+      ]);
       const fundData = await fundRes.json();
       const weeksData = await weeksRes.json();
       setTransactions((fundData.transactions || []).filter((t: Transaction) => t.type === "deposit"));
@@ -74,6 +78,14 @@ export default function EuromilhoesPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, AUTO_REFRESH_MS);
+
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   useEffect(() => {
     if (loading || syncing.current) return;
