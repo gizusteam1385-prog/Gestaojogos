@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { scratchMonths, scratchPayments, people } from "@/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const months = await db.select().from(scratchMonths).orderBy(desc(scratchMonths.year), desc(scratchMonths.month));
   return NextResponse.json(months);
